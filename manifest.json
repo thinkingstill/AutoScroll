@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "AutoScroll Gestures",
+  "version": "0.1.0",
+  "description": "Use camera gestures to control arrow keys for web players like Douyin, Kuaishou, Instagram.",
+  "permissions": ["offscreen", "storage", "activeTab", "scripting", "tabs"],
+  "host_permissions": [
+    "https://douyin.com/*",
+    "https://www.douyin.com/*",
+    "https://www.kuaishou.com/*",
+    "https://*.instagram.com/*",
+    "https://storage.googleapis.com/*",
+    "https://cdn.jsdelivr.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://douyin.com/*",
+        "https://www.douyin.com/*",
+        "https://www.kuaishou.com/*",
+        "https://*.instagram.com/*",
+        "file:///*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AutoScroll Gestures"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "styles/overlay.css",
+        "vendor/mediapipe/*",
+        "permission.html"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
+}

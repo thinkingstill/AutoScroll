@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手势识别测试页面</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      opacity: 0.8;
+      margin-bottom: 30px;
+    }
+    .status-box {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .gesture-display {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      border-radius: 15px;
+      text-align: center;
+      margin: 20px 0;
+      min-height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+    }
+    .instructions {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+    }
+    .instructions h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+    .instructions ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    .log-box {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid #4CAF50;
+      padding-left: 10px;
+    }
+    .arrow {
+      font-size: 80px;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+    .emoji-up::before { content: '⬆️'; }
+    .emoji-down::before { content: '⬇️'; }
+    .emoji-left::before { content: '⬅️'; }
+    .emoji-right::before { content: '➡️'; }
+    .emoji-none::before { content: '👋'; }
+    
+    .info-badge {
+      display: inline-block;
+      padding: 5px 15px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      margin: 5px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎮 手势识别测试页面</h1>
+    <p class="subtitle">AutoScroll Gestures 功能测试</p>
+    
+    <div class="status-box" id="status">
+      等待扩展启动...
+    </div>
+    
+    <div class="gesture-display">
+      <div class="arrow emoji-none" id="gesture"></div>
+    </div>
+    
+    <div class="instructions">
+      <h2>📋 使用说明</h2>
+      <ol>
+        <li><strong>启动扩展：</strong>点击浏览器工具栏中的扩展图标，然后点击"开始"按钮</li>
+        <li><strong>测试张开手掌：</strong>对着摄像头张开手掌（至少3根手指伸展）</li>
+        <li><strong>移动手势：</strong>保持手掌张开，向上/下/左/右移动手掌</li>
+        <li><strong>握拳暂停：</strong>握拳可以暂停/恢复手势识别</li>
+        <li><strong>查看控制台：</strong>按 F12 打开开发者工具查看详细日志</li>
+      </ol>
+    </div>
+    
+    <div>
+      <h2>📊 接收到的手势记录</h2>
+      <div class="log-box" id="log">
+        <div class="log-entry">等待手势输入...</div>
+      </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 20px;">
+      <div class="info-badge">🎯 检测阈值：8%</div>
+      <div class="info-badge">⏱️ 冷却时间：700ms</div>
+      <div class="info-badge">📦 缓冲时间：450ms</div>
+    </div>
+  </div>
+  
+  <script>
+    const statusEl = document.getElementById('status');
+    const gestureEl = document.getElementById('gesture');
+    const logEl = document.getElementById('log');
+    let gestureCount = 0;
+    
+    function updateStatus(text, color = 'rgba(255, 255, 255, 0.2)') {
+      statusEl.textContent = text;
+      statusEl.style.background = color;
+    }
+    
+    function updateGesture(direction) {
+      gestureEl.className = 'arrow emoji-' + direction;
+      setTimeout(() => {
+        gestureEl.className = 'arrow emoji-none';
+      }, 1000);
+    }
+    
+    function addLog(message, direction = null) {
+      gestureCount++;
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const emoji = direction ? 
+        {'up': '⬆️', 'down': '⬇️', 'left': '⬅️', 'right': '➡️'}[direction] || '📝' : '📝';
+      entry.textContent = `[${time}] ${emoji} ${message}`;
+      logEl.insertBefore(entry, logEl.firstChild);
+      
+      // 保持最多20条记录
+      while (logEl.children.length > 20) {
+        logEl.removeChild(logEl.lastChild);
+      }
+    }
+    
+    // 监听来自扩展的消息
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      chrome.runtime.onMessage.addListener((msg) => {
+        console.log('[Test Page] Received message:', msg);
+        
+        switch (msg.type) {
+          case 'GESTURE_STATUS':
+            if (msg.running && !msg.paused) {
+              updateStatus('✅ 手势识别运行中', 'rgba(76, 175, 80, 0.3)');
+              addLog('手势识别已启动');
+            } else if (msg.running && msg.paused) {
+              updateStatus('⏸️ 已暂停', 'rgba(255, 152, 0, 0.3)');
+              addLog('手势识别已暂停');
+            } else {
+              updateStatus('⏹️ 未运行', 'rgba(244, 67, 54, 0.3)');
+              addLog('手势识别已停止');
+            }
+            break;
+            
+          case 'GESTURE_DIRECTION':
+            const dir = msg.direction;
+            const dirName = {'up': '向上', 'down': '向下', 'left': '向左', 'right': '向右'}[dir] || dir;
+            updateGesture(dir);
+            addLog(`检测到手势：${dirName}`, dir);
+            updateStatus(`✅ 检测到手势：${dirName} (总计: ${gestureCount})`, 'rgba(76, 175, 80, 0.3)');
+            console.log(`[Test Page] 🎯 Gesture detected: ${dir}`);
+            break;
+        }
+      });
+      
+      addLog('测试页面已加载，等待扩展连接...');
+      console.log('[Test Page] Ready to receive messages from extension');
+    } else {
+      updateStatus('❌ 未检测到扩展环境', 'rgba(244, 67, 54, 0.3)');
+      addLog('错误：未检测到 Chrome 扩展环境');
+    }
+    
+    // 模拟键盘事件监听（用于验证）
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        const dirMap = {
+          'ArrowUp': 'up',
+          'ArrowDown': 'down',
+          'ArrowLeft': 'left',
+          'ArrowRight': 'right'
+        };
+        const dir = dirMap[e.key];
+        addLog(`键盘事件：${e.key}`, dir);
+        console.log('[Test Page] Keyboard event:', e.key);
+      }
+    });
+  </script>
+</body>
+</html>

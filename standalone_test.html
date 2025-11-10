@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediaPipe 手势识别独立测试</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .video-container {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .video-box {
+      flex: 1;
+      min-width: 300px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      padding: 15px;
+      position: relative;
+    }
+    
+    video, canvas {
+      width: 100%;
+      border-radius: 8px;
+      background: #000;
+    }
+    
+    .controls {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    button {
+      padding: 12px 30px;
+      font-size: 16px;
+      margin: 5px;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .status {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .gesture-display {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 40px;
+      border-radius: 15px;
+      text-align: center;
+      margin-bottom: 20px;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    
+    .gesture-icon {
+      font-size: 80px;
+      margin-bottom: 10px;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
+    .gesture-text {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    
+    .log-box {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 15px;
+      border-radius: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .log-entry {
+      padding: 5px;
+      margin: 2px 0;
+      border-left: 3px solid #4CAF50;
+      padding-left: 10px;
+    }
+    
+    .log-error {
+      border-left-color: #f44336;
+    }
+    
+    .log-warning {
+      border-left-color: #ff9800;
+    }
+    
+    .log-info {
+      border-left-color: #2196F3;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    
+    .badge-success { background: #4CAF50; }
+    .badge-error { background: #f44336; }
+    .badge-warning { background: #ff9800; }
+    .badge-info { background: #2196F3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🖐️ MediaPipe 手势识别独立测试</h1>
+    
+    <div class="controls">
+      <button id="startBtn" onclick="startDetection()">🎬 启动摄像头</button>
+      <button id="stopBtn" onclick="stopDetection()" disabled>⏹️ 停止</button>
+      <button onclick="clearLogs()">🗑️ 清空日志</button>
+    </div>
+    
+    <div class="video-container">
+      <div class="video-box">
+        <h3>📹 摄像头画面</h3>
+        <video id="video" autoplay playsinline muted></video>
+      </div>
+      <div class="video-box">
+        <h3>🎨 手部骨架</h3>
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
+    
+    <div class="gesture-display">
+      <div class="gesture-icon" id="gestureIcon">👋</div>
+      <div class="gesture-text" id="gestureText">等待手势...</div>
+    </div>
+    
+    <div class="status">
+      <h3>📊 状态信息</h3>
+      <div class="status-item">
+        <span>摄像头状态:</span>
+        <span id="cameraStatus">未启动</span>
+      </div>
+      <div class="status-item">
+        <span>手部检测:</span>
+        <span id="handStatus">未检测</span>
+      </div>
+      <div class="status-item">
+        <span>手掌状态:</span>
+        <span id="palmStatus">-</span>
+      </div>
+      <div class="status-item">
+        <span>检测到的手势:</span>
+        <span id="gestureCount">0</span>
+      </div>
+    </div>
+    
+    <div>
+      <h3>📝 日志记录</h3>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+  
+  <!-- 加载 MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  
+  <script>
+    const state = {
+      running: false,
+      paused: false,
+      lastTrigger: 0,
+      cooldownMs: 700,
+      positions: [],
+      bufferMs: 450,
+      camera: null,
+      hands: null,
+      gestureCount: 0
+    };
+    
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const canvasCtx = canvas.getContext('2d');
+    
+    function log(message, type = 'info') {
+      const logBox = document.getElementById('logBox');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      const time = new Date().toLocaleTimeString();
+      entry.textContent = `[${time}] ${message}`;
+      logBox.insertBefore(entry, logBox.firstChild);
+      
+      // 保持最多50条
+      while (logBox.children.length > 50) {
+        logBox.removeChild(logBox.lastChild);
+      }
+      
+      console.log(`[${type}] ${message}`);
+    }
+    
+    function clearLogs() {
+      document.getElementById('logBox').innerHTML = '';
+      log('日志已清空');
+    }
+    
+    function updateStatus(cameraStatus, handStatus, palmStatus) {
+      if (cameraStatus !== undefined) {
+        document.getElementById('cameraStatus').innerHTML = cameraStatus;
+      }
+      if (handStatus !== undefined) {
+        document.getElementById('handStatus').innerHTML = handStatus;
+      }
+      if (palmStatus !== undefined) {
+        document.getElementById('palmStatus').innerHTML = palmStatus;
+      }
+    }
+    
+    function updateGesture(direction) {
+      const icons = {
+        'up': '⬆️',
+        'down': '⬇️',
+        'left': '⬅️',
+        'right': '➡️'
+      };
+      const names = {
+        'up': '向上',
+        'down': '向下',
+        'left': '向左',
+        'right': '向右'
+      };
+      
+      document.getElementById('gestureIcon').textContent = icons[direction] || '👋';
+      document.getElementById('gestureText').textContent = names[direction] || '等待手势...';
+      
+      state.gestureCount++;
+      document.getElementById('gestureCount').textContent = state.gestureCount;
+      
+      setTimeout(() => {
+        document.getElementById('gestureIcon').textContent = '👋';
+        document.getElementById('gestureText').textContent = '等待手势...';
+      }, 1000);
+    }
+    
+    function isFingerExtended(lm, tipIdx, mcpIdx) {
+      const wrist = lm[0];
+      const tip = lm[tipIdx];
+      const mcp = lm[mcpIdx];
+      const dTip = Math.sqrt((tip.x - wrist.x) ** 2 + (tip.y - wrist.y) ** 2);
+      const dMcp = Math.sqrt((mcp.x - wrist.x) ** 2 + (mcp.y - wrist.y) ** 2);
+      return dTip > dMcp * 1.05;
+    }
+    
+    function isOpenPalm(lm) {
+      const fingers = [
+        isFingerExtended(lm, 8, 5),   // 食指
+        isFingerExtended(lm, 12, 9),  // 中指
+        isFingerExtended(lm, 16, 13), // 无名指
+        isFingerExtended(lm, 20, 17)  // 小指
+      ];
+      const extendedCount = fingers.filter(Boolean).length;
+      return extendedCount >= 3;
+    }
+    
+    function palmCenter(landmarks) {
+      let sx = 0, sy = 0;
+      for (const p of landmarks) {
+        sx += p.x;
+        sy += p.y;
+      }
+      const n = landmarks.length || 1;
+      return { x: sx / n, y: sy / n };
+    }
+    
+    function pushPosition(center) {
+      const t = performance.now();
+      state.positions.push({ t, c: center });
+      while (state.positions.length && (t - state.positions[0].t) > state.bufferMs) {
+        state.positions.shift();
+      }
+    }
+    
+    function tryEmitDirection() {
+      const t = performance.now();
+      if ((t - state.lastTrigger) < state.cooldownMs) {
+        return;
+      }
+      if (state.positions.length < 2) {
+        return;
+      }
+      
+      const first = state.positions[0].c;
+      const last = state.positions[state.positions.length - 1].c;
+      const dx = last.x - first.x;
+      const dy = last.y - first.y;
+      
+      const thX = 0.08;
+      const thY = 0.08;
+      let direction = null;
+      
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (Math.abs(dx) > thX) {
+          direction = dx > 0 ? "right" : "left";
+        }
+      } else {
+        if (Math.abs(dy) > thY) {
+          direction = dy > 0 ? "down" : "up";
+        }
+      }
+      
+      if (direction) {
+        log(`🎯 检测到手势: ${direction}`, 'info');
+        state.lastTrigger = t;
+        updateGesture(direction);
+      }
+    }
+    
+    function drawHand(landmarks) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // 绘制连接线
+      const connections = [
+        [0,1],[1,2],[2,3],[3,4],      // 大拇指
+        [0,5],[5,6],[6,7],[7,8],      // 食指
+        [0,9],[9,10],[10,11],[11,12], // 中指
+        [0,13],[13,14],[14,15],[15,16], // 无名指
+        [0,17],[17,18],[18,19],[19,20], // 小指
+        [5,9],[9,13],[13,17]          // 手掌
+      ];
+      
+      canvasCtx.strokeStyle = '#00FF00';
+      canvasCtx.lineWidth = 2;
+      
+      for (const [start, end] of connections) {
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(landmarks[start].x * canvas.width, landmarks[start].y * canvas.height);
+        canvasCtx.lineTo(landmarks[end].x * canvas.width, landmarks[end].y * canvas.height);
+        canvasCtx.stroke();
+      }
+      
+      // 绘制关键点
+      for (const landmark of landmarks) {
+        canvasCtx.beginPath();
+        canvasCtx.arc(
+          landmark.x * canvas.width,
+          landmark.y * canvas.height,
+          5, 0, 2 * Math.PI
+        );
+        canvasCtx.fillStyle = '#FF0000';
+        canvasCtx.fill();
+      }
+      
+      canvasCtx.restore();
+    }
+    
+    function onResults(results) {
+      if (!state.running) return;
+      
+      const lms = results.multiHandLandmarks?.[0];
+      
+      if (!lms) {
+        updateStatus(undefined, '未检测到手 <span class="badge badge-warning">-</span>', '-');
+        return;
+      }
+      
+      updateStatus(undefined, '检测到手部 <span class="badge badge-success">✓</span>', undefined);
+      
+      // 绘制手部骨架
+      drawHand(lms);
+      
+      const isPalmOpen = isOpenPalm(lms);
+      updateStatus(undefined, undefined, isPalmOpen ? '张开 <span class="badge badge-success">✓</span>' : '未张开 <span class="badge badge-warning">-</span>');
+      
+      if (!isPalmOpen) {
+        return;
+      }
+      
+      const center = palmCenter(lms);
+      pushPosition(center);
+      tryEmitDirection();
+    }
+    
+    async function startDetection() {
+      if (state.running) return;
+      
+      try {
+        log('正在启动摄像头...', 'info');
+        document.getElementById('startBtn').disabled = true;
+        
+        // 请求摄像头
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480 }
+        });
+        
+        video.srcObject = stream;
+        await video.play();
+        
+        // 设置canvas尺寸
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        log('摄像头启动成功', 'info');
+        updateStatus('运行中 <span class="badge badge-success">✓</span>', undefined, undefined);
+        
+        // 初始化 MediaPipe Hands
+        log('正在初始化 MediaPipe...', 'info');
+        
+        const hands = new Hands({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+          }
+        });
+        
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        
+        hands.onResults(onResults);
+        
+        log('MediaPipe 初始化成功', 'info');
+        
+        const camera = new Camera(video, {
+          onFrame: async () => {
+            if (state.running) {
+              await hands.send({ image: video });
+            }
+          },
+          width: 640,
+          height: 480
+        });
+        
+        await camera.start();
+        
+        state.camera = camera;
+        state.hands = hands;
+        state.running = true;
+        
+        document.getElementById('stopBtn').disabled = false;
+        log('手势识别启动完成！请对着摄像头张开手掌并移动', 'info');
+        
+      } catch (e) {
+        log(`启动失败: ${e.message}`, 'error');
+        updateStatus('失败 <span class="badge badge-error">✗</span>', undefined, undefined);
+        document.getElementById('startBtn').disabled = false;
+      }
+    }
+    
+    function stopDetection() {
+      if (!state.running) return;
+      
+      try {
+        state.running = false;
+        
+        if (state.camera) {
+          state.camera.stop();
+        }
+        
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        
+        state.camera = null;
+        state.hands = null;
+        state.positions = [];
+        
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+        
+        updateStatus('已停止 <span class="badge badge-warning">-</span>', '未检测', '-');
+        
+        log('手势识别已停止', 'info');
+        
+      } catch (e) {
+        log(`停止时出错: ${e.message}`, 'error');
+      }
+    }
+    
+    // 页面加载时的初始化
+    log('页面已加载，点击"启动摄像头"开始测试', 'info');
+  </script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>摄像头权限 - AutoScroll Gestures</title>
+    <meta http-equiv="Permissions-Policy" content="camera=(self)">
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif;
+        max-width: 500px;
+        margin: 50px auto;
+        padding: 30px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #333;
+      }
+      p {
+        font-size: 14px;
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        margin: 10px;
+      }
+      button:hover {
+        background: #45a049;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      #status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+      .steps {
+        text-align: left;
+        margin: 20px 0;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+      }
+      .steps ol {
+        margin: 10px 0;
+        padding-left: 20px;
+      }
+      .steps li {
+        margin: 8px 0;
+      }
+      video {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎥 摄像头权限设置</h1>
+    
+    <p>AutoScroll Gestures 需要访问您的摄像头来识别手势。</p>
+    
+    <div class="steps">
+      <strong>使用说明：</strong>
+      <ol>
+        <li>点击下方"授予摄像头权限"按钮</li>
+        <li>在浏览器提示中点击"允许"</li>
+        <li>授权成功后关闭此页面</li>
+        <li>在目标网站（抖音/快手/Instagram）打开扩展 popup</li>
+        <li>点击"启动识别"开始使用</li>
+      </ol>
+    </div>
+    
+    <button id="requestBtn">授予摄像头权限</button>
+    <button id="closeBtn" style="display:none; background:#666;">关闭页面</button>
+    
+    <div id="status"></div>
+    
+    <video id="video" autoplay muted playsinline></video>
+    
+    <script src="permission.js"></script>
+  </body>
+</html>
