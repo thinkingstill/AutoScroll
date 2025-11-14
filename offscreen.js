@@ -86,23 +86,30 @@ function tryEmitDirection() {
     return;
   }
   
-  // 只比较最近的几个位置，关注最终手势方向
-  const recentCount = Math.min(5, state.positions.length);
-  const recentPositions = state.positions.slice(-recentCount);
+  // 只使用最近300ms的位置数据来判断最终方向
+  const finalWindowMs = 300;
+  const recentT = t - finalWindowMs;
+  const finalPositions = state.positions.filter(p => p.t >= recentT);
   
-  const first = recentPositions[0].c;
-  const last = recentPositions[recentPositions.length - 1].c;
+  if (finalPositions.length < 2) {
+    console.log('[OFFSCREEN] 📊 Not enough recent samples for final direction');
+    return;
+  }
+  
+  // 使用最近的位置来确定最终方向
+  const first = finalPositions[0].c;
+  const last = finalPositions[finalPositions.length - 1].c;
   const dx = last.x - first.x;
   const dy = last.y - first.y;
   
-  console.log('[OFFSCREEN] 📏 Recent movement (last', recentCount, 'samples):', {
+  console.log('[OFFSCREEN] 📏 Final movement (last 300ms,', finalPositions.length, 'samples):', {
     dx: dx.toFixed(3),
     dy: dy.toFixed(3)
   });
   
   // 降低移动阈值，更容易触发
-  const thX = 0.04;
-  const thY = 0.04;
+  const thX = 0.03;
+  const thY = 0.03;
   let direction = null;
   
   if (Math.abs(dx) > Math.abs(dy)) {

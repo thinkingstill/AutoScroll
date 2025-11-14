@@ -80,9 +80,75 @@
   }
 
   function smoothScroll(deltaY) {
+    const host = location.hostname;
+    
+    // 需要特殊处理的网站列表
+    const needsCustomScroll = [
+      'instagram.com',
+      'douyin.com',
+      'kuaishou.com',
+      'xiaohongshu.com',
+      'tiktok.com',
+      'youtube.com'
+    ];
+    
+    const needsCustom = needsCustomScroll.some(site => host.includes(site));
+    
+    if (needsCustom) {
+      console.log('[ASG Content] Custom scroll site detected:', host);
+      
+      // 查找所有可能的滚动容器
+      const allDivs = document.querySelectorAll('div');
+      const scrollableContainers = [];
+      
+      for (const div of allDivs) {
+        const style = window.getComputedStyle(div);
+        const overflowY = style.overflowY;
+        
+        // 检查是否可滚动
+        if ((overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') && 
+            div.scrollHeight > div.clientHeight &&
+            div.clientHeight > 100) {  // 确保容器足够大
+          scrollableContainers.push({
+            element: div,
+            scrollHeight: div.scrollHeight,
+            clientHeight: div.clientHeight,
+            scrollTop: div.scrollTop
+          });
+        }
+      }
+      
+      console.log('[ASG Content] Found', scrollableContainers.length, 'scrollable containers');
+      
+      // 优先选择最大的可滚动容器
+      if (scrollableContainers.length > 0) {
+        scrollableContainers.sort((a, b) => b.clientHeight - a.clientHeight);
+        const container = scrollableContainers[0].element;
+        
+        console.log('[ASG Content] Using largest scroll container:', {
+          scrollHeight: scrollableContainers[0].scrollHeight,
+          clientHeight: scrollableContainers[0].clientHeight,
+          currentScrollTop: scrollableContainers[0].scrollTop
+        });
+        
+        try {
+          container.scrollBy({ top: deltaY, behavior: "smooth" });
+          console.log('[ASG Content] Container scrolled:', deltaY);
+          return;
+        } catch (e) {
+          container.scrollTop += deltaY;
+          console.log('[ASG Content] Container scrolled (fallback):', deltaY);
+          return;
+        }
+      }
+      
+      console.log('[ASG Content] No custom scroll container found, trying window scroll');
+    }
+    
+    // 默认window滚动
     try {
       window.scrollBy({ top: deltaY, behavior: "smooth" });
-      console.log('[ASG Content] Scroll:', deltaY);
+      console.log('[ASG Content] Window scroll:', deltaY);
     } catch (_) {
       window.scrollBy(0, deltaY);
     }
@@ -184,6 +250,44 @@
     state.lastDirection = direction;
     updateOverlay();
     
+    const host = location.hostname;
+    
+    // TikTok特殊处理：使用键盘事件切换视频
+    if (host.includes("tiktok.com")) {
+      console.log('[ASG Content] TikTok detected, using keyboard navigation');
+      switch (direction) {
+        case "up":
+          console.log('[ASG Content] TikTok UP: Previous video');
+          dispatchArrowKey("ArrowUp");
+          return;
+        case "down":
+          console.log('[ASG Content] TikTok DOWN: Next video');
+          dispatchArrowKey("ArrowDown");
+          return;
+        case "left":
+          const now = Date.now();
+          if (now - state.lastLeftTime > 2000) {
+            state.leftGestureCount = 0;
+          }
+          state.leftGestureCount++;
+          state.lastLeftTime = now;
+          console.log('[ASG Content] LEFT gesture count:', state.leftGestureCount);
+          if (state.leftGestureCount >= 2) {
+            console.log('[ASG Content] LEFT x2: Browser back');
+            window.history.back();
+            state.leftGestureCount = 0;
+          } else {
+            console.log('[ASG Content] LEFT: Need one more (1/2)');
+          }
+          return;
+        case "right":
+          console.log('[ASG Content] TikTok RIGHT: Arrow key');
+          dispatchArrowKey("ArrowRight");
+          return;
+      }
+    }
+    
+    // 其他网站的处理
     switch (direction) {
       case "up":
         console.log('[ASG Content] UP: Arrow + Scroll');

@@ -3,6 +3,9 @@ const TARGET_URLS = [
   "https://www.douyin.com/*",
   "https://www.kuaishou.com/*",
   "https://*.instagram.com/*",
+  "https://*.tiktok.com/*",
+  "https://*.youtube.com/*",
+  "https://*.xiaohongshu.com/*",
 ];
 
 let isRunning = false;
